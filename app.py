@@ -63,6 +63,14 @@ st.sidebar.info("""
 uploaded_file = st.sidebar.file_uploader("📥 Upload your PDF", type=["pdf"])
 max_chunks = st.sidebar.slider("🔹 Max chunks to summarize:", 1, 10, 3)
 
+# Reset session state for new PDF uploads
+if 'prev_file' not in st.session_state:
+    st.session_state.prev_file = None
+
+if uploaded_file != st.session_state.prev_file:
+    st.session_state.prev_file = uploaded_file
+    st.session_state['summary'] = ""
+
 st.markdown("<h1 style='text-align: center;'>📄 Hugging Face PDF Summarizer</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>✨ Powered by Hugging Face Inference API | Built for your Agentic AI projects</p>", unsafe_allow_html=True)
 
@@ -84,15 +92,18 @@ if uploaded_file:
                     if isinstance(output, list) and "summary_text" in output[0]:
                         summary_text = output[0]["summary_text"]
                         wrapped_summary = textwrap.fill(summary_text, width=100)
-                        summaries.append(f"**Chunk {idx+1}:**\n{wrapped_summary}\n")
+                        summaries.append(f"**🔹 Chunk {idx+1}:**\n\n{wrapped_summary}\n")
                     else:
-                        summaries.append(f"**Chunk {idx+1}:**\n❌ Could not summarize.\n\nError: {output}\n")
+                        summaries.append(f"**🔹 Chunk {idx+1}:**\n❌ Could not summarize.\n\nError: {output}\n")
                 final_summary = "\n\n".join(summaries)
-            st.subheader("✨ Abstractive Summary")
-            st.markdown(final_summary)
+                st.session_state['summary'] = final_summary
+
+    if st.session_state.get('summary'):
+        st.subheader("✨ Abstractive Summary")
+        st.markdown(st.session_state['summary'])
 
 else:
     st.info("👈 Upload a PDF from the **sidebar** to get started.")
 
 st.markdown("---")
-st.caption("⚡ Built by Timoh-top for Agentic AI learning, scholarships, and portfolio.")
+st.caption("⚡ Built by Timothy Ajewole for Agentic AI learning, and portfolio.")
