@@ -1,17 +1,20 @@
 import streamlit as st
-import PyPDF2
+import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lex_rank import LexRankSummarizer
 
-# Helper: Extract text from PDF
+# Helper: Extract text from PDF using pdfplumber
 def extract_text_from_pdf(file):
     text = ""
-    reader = PyPDF2.PdfReader(file)
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text
+    with pdfplumber.open(file) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
     return text
 
 # Helper: Chunk text for retrieval
@@ -24,9 +27,13 @@ def chunk_text(text, chunk_size=1000, overlap=200):
         start += chunk_size - overlap
     return chunks
 
-# Helper: Summarize using extractive preview
-def summarize_text(text, max_chars=1500):
-    return text[:max_chars] + ("..." if len(text) > max_chars else "")
+# Helper: Summarize using extractive LexRank
+def summarize_text(text, sentence_count=10):
+    parser = PlaintextParser.from_string(text, Tokenizer("english"))
+    summarizer = LexRankSummarizer()
+    summary = summarizer(parser.document, sentence_count)
+    summarized_text = " ".join(str(sentence) for sentence in summary)
+    return summarized_text
 
 # Helper: Retrieve relevant chunk based on question
 def retrieve_answer(question, chunks):
@@ -36,29 +43,32 @@ def retrieve_answer(question, chunks):
     idx = np.argmax(cosine_sim)
     return chunks[idx]
 
-# Streamlit App
-st.title("Free PDF Summarizer + Q&A App")
+# Streamlit App UI
+st.title("📄 Free PDF Summarizer + Q&A App")
 st.markdown("""
-**How to use:**
-Upload a **text-based PDF** (not a scanned image).  
-Click **Show Extractive Summary** to preview the PDF.  
-Enter your question to get a retrieval-based answer from your PDF.
+**Welcome!** This app allows you to:
+Upload a **text-based PDF**  
+Generate a **clean extractive summary** (using LexRank)  
+**Ask questions** to retrieve relevant sections from your PDF.
+
+⚡ All **completely free** for your learning and Agentic AI practice.
 """)
 
-uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"])
+uploaded_file = st.file_uploader("📥 Upload your PDF", type=["pdf"])
 
 if uploaded_file:
-    st.success("PDF uploaded successfully.")
+    st.success("✅ PDF uploaded successfully. Extracting text...")
     raw_text = extract_text_from_pdf(uploaded_file)
     if not raw_text.strip():
         st.error("❌ No extractable text found in this PDF. Please try another PDF with selectable text.")
         st.stop()
     else:
-        st.info(f"PDF extracted with {len(raw_text)} characters.")
+        st.info(f"Extracted {len(raw_text)} characters from your PDF.")
 
         # Show summary
-        if st.button("Show Extractive Summary"):
-            summary = summarize_text(raw_text)
+        if st.button("📑 Generate Extractive Summary"):
+            with st.spinner("Generating summary..."):
+                summary = summarize_text(raw_text)
             st.subheader("📑 Summary Preview")
             st.write(summary)
 
@@ -68,10 +78,10 @@ if uploaded_file:
         # Q&A
         question = st.text_input("💬 Ask a question about your PDF:")
         if question:
-            with st.spinner("Retrieving the best matching answer..."):
+            with st.spinner("Retrieving the best matching section..."):
                 answer = retrieve_answer(question, chunks)
-            st.success("Answer (retrieved section):")
+            st.success("Retrieved Section:")
             st.write(answer)
 
 st.markdown("---")
-st.caption("🚀 Built for zero-cost learning and Agentic AI practice. Deployable on Streamlit Cloud for others to use.")
+st.caption("⚡ Built for zero-cost learning and Agentic AI preparation by Timoh-top.")
