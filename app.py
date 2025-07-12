@@ -3,16 +3,7 @@ import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lex_rank import LexRankSummarizer
-import nltk
-
-# Robustly ensure punkt tokenizer is available
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+from gensim.summarization import summarize
 
 # Helper: Extract text from PDF using pdfplumber
 def extract_text_from_pdf(file):
@@ -34,18 +25,15 @@ def chunk_text(text, chunk_size=1000, overlap=200):
         start += chunk_size - overlap
     return chunks
 
-# Helper: Summarize using extractive LexRank
-def summarize_text(text, sentence_count=10):
-    # Double-check punkt availability inside function for Streamlit Cloud stability
+# Helper: Summarize using gensim
+def summarize_text(text, ratio=0.1):
     try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt')
-    parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    summarizer = LexRankSummarizer()
-    summary = summarizer(parser.document, sentence_count)
-    summarized_text = " ".join(str(sentence) for sentence in summary)
-    return summarized_text
+        summary = summarize(text, ratio=ratio, split=False)
+        if not summary.strip():
+            return text[:1500] + ("..." if len(text) > 1500 else "")
+        return summary
+    except ValueError:
+        return text[:1500] + ("..." if len(text) > 1500 else "")
 
 # Helper: Retrieve relevant chunk based on question
 def retrieve_answer(question, chunks):
@@ -60,7 +48,7 @@ st.title("📄 Free PDF Summarizer + Q&A App")
 st.markdown("""
 🚀 **Welcome!** This app allows you to:
 1️⃣ Upload a **text-based PDF**  
-2️⃣ Generate a **clean extractive summary** using LexRank  
+2️⃣ Generate a **clean extractive summary**  
 3️⃣ **Ask questions** to retrieve relevant sections from your PDF
 
 ⚡ Fully free for your learning, Agentic AI practice, and portfolio building.
