@@ -3,7 +3,7 @@ import pdfplumber
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from gensim.summarization import summarize
+import re
 
 # Helper: Extract text from PDF using pdfplumber
 def extract_text_from_pdf(file):
@@ -15,6 +15,24 @@ def extract_text_from_pdf(file):
                 text += page_text + "\n"
     return text
 
+# Helper: Chunk text into sentences
+def split_into_sentences(text):
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    return [s.strip() for s in sentences if len(s.strip()) > 20]
+
+# Helper: TF-IDF Extractive summarizer
+def summarize_text(text, num_sentences=10):
+    sentences = split_into_sentences(text)
+    if len(sentences) <= num_sentences:
+        return " ".join(sentences)
+
+    vect = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = vect.fit_transform(sentences)
+    scores = np.asarray(tfidf_matrix.sum(axis=1)).ravel()
+    top_indices = scores.argsort()[-num_sentences:][::-1]
+    summary = [sentences[i] for i in sorted(top_indices)]
+    return " ".join(summary)
+
 # Helper: Chunk text for retrieval
 def chunk_text(text, chunk_size=1000, overlap=200):
     chunks = []
@@ -24,16 +42,6 @@ def chunk_text(text, chunk_size=1000, overlap=200):
         chunks.append(text[start:end])
         start += chunk_size - overlap
     return chunks
-
-# Helper: Summarize using gensim
-def summarize_text(text, ratio=0.1):
-    try:
-        summary = summarize(text, ratio=ratio, split=False)
-        if not summary.strip():
-            return text[:1500] + ("..." if len(text) > 1500 else "")
-        return summary
-    except ValueError:
-        return text[:1500] + ("..." if len(text) > 1500 else "")
 
 # Helper: Retrieve relevant chunk based on question
 def retrieve_answer(question, chunks):
@@ -48,7 +56,7 @@ st.title("📄 Free PDF Summarizer + Q&A App")
 st.markdown("""
 🚀 **Welcome!** This app allows you to:
 1️⃣ Upload a **text-based PDF**  
-2️⃣ Generate a **clean extractive summary**  
+2️⃣ Generate a **clean extractive summary** using TF-IDF  
 3️⃣ **Ask questions** to retrieve relevant sections from your PDF
 
 ⚡ Fully free for your learning, Agentic AI practice, and portfolio building.
