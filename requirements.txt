@@ -3,5 +3,3 @@ pdfplumber
 scikit-learn
 numpy
 pandas
-gensim
-nltk
