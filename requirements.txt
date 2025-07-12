@@ -3,5 +3,5 @@ pdfplumber
 scikit-learn
 numpy
 pandas
-sumy
+gensim
 nltk
